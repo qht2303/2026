@@ -1,0 +1,527 @@
+{% extends "base.html" %}
+
+{% block content %}
+{# Списки значений в БД #}
+{% set statuses = ['new', 'diagnostics', 'in_work', 'ready', 'closed', 'cancelled'] %}
+
+{# Русские подписи для статусов и ролей #}
+{% set status_labels = {
+    'new': 'Новая',
+    'diagnostics': 'Диагностика',
+    'in_work': 'В работе',
+    'ready': 'Готово',
+    'closed': 'Закрыта',
+    'cancelled': 'Отменена'
+} %}
+
+{% set role_labels = {
+    'admin': 'Администратор',
+    'manager': 'Менеджер',
+    'master': 'Мастер',
+    'client': 'Клиент'
+} %}
+
+<section class="card">
+    <h1>Сервисный раздел</h1>
+    <p>Роль: <strong>{{ role_labels.get(role, role) }}</strong></p>
+</section>
+
+{% if role == 'manager' %}
+
+    <!-- МЕНЕДЖЕР: Блок 1 — Заказы (карточками) -->
+    <section class="card">
+        <div class="card-header-row">
+            <h2>Заказы</h2>
+            <button class="btn btn-primary" id="open-service-order-modal-btn">
+                Создать заказ
+            </button>
+        </div>
+
+        <div class="order-list">
+            {% for o in orders %}
+                <form method="post"
+                      action="{{ url_for('service_order_update_manager') }}"
+                      class="order-card">
+                    <input type="hidden" name="order_id" value="{{ o.id }}">
+
+                    <!-- Строка 1: номер + статус -->
+                    <div class="order-card-row order-card-row-top">
+                        <div class="order-card-title">
+                            <span class="order-number">Заказ {{ o.order_number }}</span>
+                        </div>
+                        <div class="order-card-status">
+                            <label>Статус</label>
+                            <select name="status">
+                                {% for s in statuses %}
+                                    <option value="{{ s }}" {% if o.status == s %}selected{% endif %}>
+                                        {{ status_labels.get(s, s) }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Строка 2: заказчик / менеджер -->
+                    <div class="order-card-row">
+                        <div class="order-card-col">
+                            <strong>Заказчик:</strong> {{ o.client_name or '—' }}
+                        </div>
+                        <div class="order-card-col text-right">
+                            <strong>Менеджер:</strong> {{ o.manager_name or '—' }}
+                        </div>
+                    </div>
+
+                    <!-- Строка 3: телефон / мастер -->
+                    <div class="order-card-row">
+                        <div class="order-card-col">
+                            <strong>Телефон:</strong> {{ o.client_phone or '—' }}
+                        </div>
+                        <div class="order-card-col text-right">
+                            <strong>Мастер:</strong>
+                            <select name="master_id">
+                                <option value="">(не назначен)</option>
+                                {% for m in masters %}
+                                    <option value="{{ m.id }}" {% if o.master_id == m.id %}selected{% endif %}>
+                                        {{ m.full_name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Устройство / проблема / результат -->
+                    <div class="order-card-row">
+                        <div class="order-card-field">
+                            <strong>Устройство:</strong> {{ o.device_model or '—' }}
+                        </div>
+                    </div>
+                    <div class="order-card-row">
+                        <div class="order-card-field">
+                            <strong>Описание:</strong> {{ o.problem_description or '—' }}
+                        </div>
+                    </div>
+                    <div class="order-card-row">
+                        <div class="order-card-field">
+                            <strong>Результат диагностики:</strong> {{ o.diagnostic_result or '—' }}
+                        </div>
+                    </div>
+
+                    <!-- Цены + кнопка -->
+                    <div class="order-card-row order-card-footer">
+                        <div class="order-prices">
+                            <span><strong>≈</strong> {{ o.approx_price or '—' }}</span>
+                            <span><strong>=</strong> {{ o.final_price or '—' }}</span>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-sm">Сохранить</button>
+                    </div>
+                </form>
+            {% endfor %}
+        </div>
+    </section>
+
+    <!-- МЕНЕДЖЕР: Блок 2 — Обратные звонки -->
+    <section class="card">
+        <h2>Обратные звонки</h2>
+
+        <table class="orders-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Телефон</th>
+                    <th>Статус</th>
+                    <th>Создано</th>
+                    <th>Обработал</th>
+                    <th>Удалить</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for c in callbacks %}
+                <tr>
+                    <td>{{ c.id }}</td>
+                    <td>{{ c.phone }}</td>
+                    <td>{{ status_labels.get(c.status, c.status) }}</td>
+                    <td>{{ c.created_at }}</td>
+                    <td>{{ c.processed_by_name or '-' }}</td>
+                    <td>
+                        <form method="post" action="{{ url_for('service_callback_delete') }}">
+                            <input type="hidden" name="callback_id" value="{{ c.id }}">
+                            <button type="submit" class="btn btn-secondary btn-sm">Удалить</button>
+                        </form>
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </section>
+
+{% elif role == 'master' %}
+
+    <!-- МАСТЕР: Заказы карточками -->
+    <section class="card">
+        <h2>Заказы</h2>
+
+
+        {% if orders %}
+            <div class="order-list">
+                {% for o in orders %}
+                    <form method="post"
+                          action="{{ url_for('service_order_update_master') }}"
+                          class="order-card">
+                        <input type="hidden" name="order_id" value="{{ o.id }}">
+
+                        <!-- 1 строка: номер + статус -->
+                        <div class="order-card-row order-card-row-top">
+                            <div class="order-card-title">
+                                <span class="order-number">Заказ {{ o.order_number }}</span>
+                            </div>
+                            <div class="order-card-status">
+                                <label>Статус</label>
+                                <select name="status">
+                                    {% for s in statuses %}
+                                        <option value="{{ s }}" {% if o.status == s %}selected{% endif %}>
+                                            {{ status_labels.get(s, s) }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- 2 строка: заказчик / менеджер -->
+                        <div class="order-card-row">
+                            <div class="order-card-col">
+                                <strong>Заказчик:</strong> {{ o.client_name or '—' }}
+                            </div>
+                            <div class="order-card-col text-right">
+                                <strong>Менеджер:</strong> {{ o.manager_name or '—' }}
+                            </div>
+                        </div>
+
+                        <!-- 3 строка: телефон / мастер -->
+                        <div class="order-card-row">
+                            <div class="order-card-col">
+                                <strong>Телефон:</strong> {{ o.client_phone or '—' }}
+                            </div>
+                            <div class="order-card-col text-right">
+                                <strong>Мастер:</strong> Вы
+                            </div>
+                        </div>
+
+                        <!-- Поля редактирования -->
+                        <div class="order-card-row">
+                            <div class="order-card-field">
+                                <label><strong>Устройство:</strong></label>
+                                <input type="text" name="device_model" value="{{ o.device_model }}" disabled>
+                            </div>
+                        </div>
+                        <div class="order-card-row">
+                            <div class="order-card-field">
+                                <label><strong>Описание проблемы:</strong></label>
+                                <textarea name="problem_description">{{ o.problem_description }}</textarea>
+                            </div>
+                        </div>
+                        <div class="order-card-row">
+                            <div class="order-card-field">
+                                <label><strong>Результат диагностики:</strong></label>
+                                <textarea name="diagnostic_result">{{ o.diagnostic_result or '' }}</textarea>
+                            </div>
+                        </div>
+
+                        <!-- Цены + кнопка -->
+                        <div class="order-card-row order-card-footer">
+                            <div class="order-prices">
+                                <div>
+                                    <label>≈</label>
+                                    <input type="number" step="0.01" name="approx_price"
+                                           value="{{ o.approx_price or '' }}">
+                                </div>
+                                <div>
+                                    <label>=</label>
+                                    <input type="number" step="0.01" name="final_price"
+                                           value="{{ o.final_price or '' }}">
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-sm">Сохранить</button>
+                        </div>
+                    </form>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p>Нет назначенных вам активных заказов.</p>
+        {% endif %}
+    </section>
+
+{% elif role == 'admin' %}
+
+    <!-- АДМИН: Блок 1 — Заказы карточками -->
+    <section class="card">
+        <div class="card-header-row">
+            <h2>Все заказы</h2>
+            <button class="btn btn-primary" id="open-service-order-modal-btn">
+                Создать заказ
+            </button>
+        </div>
+
+
+        <div class="order-list">
+            {% for o in orders %}
+                <form method="post"
+                      action="{{ url_for('service_order_update_admin') }}"
+                      class="order-card">
+                    <input type="hidden" name="order_id" value="{{ o.id }}">
+
+                    <!-- 1 строка: номер + статус -->
+                    <div class="order-card-row order-card-row-top">
+                        <div class="order-card-title">
+                            <span class="order-number">Заказ {{ o.order_number }}</span>
+                        </div>
+                        <div class="order-card-status">
+                            <label>Статус</label>
+                            <select name="status">
+                                {% for s in statuses %}
+                                    <option value="{{ s }}" {% if o.status == s %}selected{% endif %}>
+                                        {{ status_labels.get(s, s) }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- 2 строка: заказчик / менеджер -->
+                    <div class="order-card-row">
+                        <div class="order-card-col">
+                            <label><strong>Заказчик:</strong></label>
+                            <input type="text" name="client_name" value="{{ o.client_name }}">
+                        </div>
+                        <div class="order-card-col text-right">
+                            <label><strong>Менеджер:</strong></label>
+                            <select name="manager_id">
+                                <option value="">(нет)</option>
+                                {% for m in managers %}
+                                    <option value="{{ m.id }}" {% if o.manager_id == m.id %}selected{% endif %}>
+                                        {{ m.full_name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- 3 строка: телефон / мастер -->
+                    <div class="order-card-row">
+                        <div class="order-card-col">
+                            <label><strong>Телефон:</strong></label>
+                            <input type="text" name="client_phone" value="{{ o.client_phone }}">
+                        </div>
+                        <div class="order-card-col text-right">
+                            <label><strong>Мастер:</strong></label>
+                            <select name="master_id">
+                                <option value="">(нет)</option>
+                                {% for m in masters %}
+                                    <option value="{{ m.id }}" {% if o.master_id == m.id %}selected{% endif %}>
+                                        {{ m.full_name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Устройство / описание / результат -->
+                    <div class="order-card-row">
+                        <div class="order-card-field">
+                            <label><strong>Устройство:</strong></label>
+                            <input type="text" name="device_model" value="{{ o.device_model }}">
+                        </div>
+                    </div>
+                    <div class="order-card-row">
+                        <div class="order-card-field">
+                            <label><strong>Описание:</strong></label>
+                            <textarea name="problem_description">{{ o.problem_description }}</textarea>
+                        </div>
+                    </div>
+                    <div class="order-card-row">
+                        <div class="order-card-field">
+                            <label><strong>Результат диагностики:</strong></label>
+                            <textarea name="diagnostic_result">{{ o.diagnostic_result or '' }}</textarea>
+                        </div>
+                    </div>
+
+                    <!-- Цены + кнопка -->
+                    <div class="order-card-row order-card-footer">
+                        <div class="order-prices">
+                            <div>
+                                <label>≈</label>
+                                <input type="number" step="0.01" name="approx_price"
+                                       value="{{ o.approx_price or '' }}">
+                            </div>
+                            <div>
+                                <label>=</label>
+                                <input type="number" step="0.01" name="final_price"
+                                       value="{{ o.final_price or '' }}">
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-sm">Сохранить</button>
+                    </div>
+                </form>
+            {% endfor %}
+        </div>
+    </section>
+
+    <!-- АДМИН: Блок 2 — Обратные звонки -->
+    <section class="card">
+        <h2>Обратные звонки</h2>
+
+        <table class="orders-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Телефон</th>
+                    <th>Статус</th>
+                    <th>Создано</th>
+                    <th>Обработал</th>
+                    <th>Удалить</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for c in callbacks %}
+                <tr>
+                    <td>{{ c.id }}</td>
+                    <td>{{ c.phone }}</td>
+                    <td>{{ status_labels.get(c.status, c.status) }}</td>
+                    <td>{{ c.created_at }}</td>
+                    <td>{{ c.processed_by_name or '-' }}</td>
+                    <td>
+                        <form method="post" action="{{ url_for('service_callback_delete') }}">
+                            <input type="hidden" name="callback_id" value="{{ c.id }}">
+                            <button type="submit" class="btn btn-secondary btn-sm">Удалить</button>
+                        </form>
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </section>
+
+    <!-- АДМИН: Блок 3 — Пользователи -->
+    <section class="card">
+        <div class="card-header-row">
+            <h2>Пользователи</h2>
+            <button class="btn btn-primary" id="open-service-user-modal-btn">
+                Создать пользователя
+            </button>
+        </div>
+
+        <table class="orders-table users-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Логин</th>
+                    <th>ФИО</th>
+                    <th>Роль</th>
+                    <th>Телефон</th>
+                    <th>Email</th>
+                    <th>Сохранить</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for u in users_list %}
+                <tr>
+                    <form method="post" action="{{ url_for('service_user_update') }}">
+                        <input type="hidden" name="user_id" value="{{ u.id }}">
+                        <td>{{ u.id }}</td>
+                        <td><input type="text" name="login" value="{{ u.login or '' }}"></td>
+                        <td><input type="text" name="full_name" value="{{ u.full_name }}"></td>
+                        <td>
+                            <select name="role">
+                                {% for r in ['admin', 'manager', 'master', 'client'] %}
+                                    <option value="{{ r }}" {% if u.role == r %}selected{% endif %}>
+                                        {{ role_labels.get(r, r) }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td><input type="text" name="phone" value="{{ u.phone or '' }}"></td>
+                        <td><input type="email" name="email" value="{{ u.email or '' }}"></td>
+                        <td><button type="submit" class="btn btn-primary btn-sm">Сохранить</button></td>
+                    </form>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </section>
+
+{% endif %}
+
+{# ====== МОДАЛКИ ДЛЯ СОЗДАНИЯ ЗАПИСЕЙ ====== #}
+
+{% if role in ['manager', 'admin'] %}
+    <!-- Модалка: Создание заказа -->
+    <div id="service-order-modal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close" data-close="service-order-modal">&times;</span>
+            <h2>Создать заказ</h2>
+            <form method="post" action="{{ url_for('service_order_create') }}">
+                <label>Имя клиента</label>
+                <input type="text" name="client_name" required>
+
+                <label>Телефон клиента</label>
+                <input type="text" name="client_phone" required>
+
+                <label>Модель устройства</label>
+                <input type="text" name="device_model" required>
+
+                <label>Описание проблемы</label>
+                <textarea name="problem_description" required></textarea>
+
+                <label>Ориентировочная цена</label>
+                <input type="number" step="0.01" name="approx_price">
+
+                <label>Мастер</label>
+                <select name="master_id">
+                    <option value="">(не назначать)</option>
+                    {% for m in masters %}
+                        <option value="{{ m.id }}">{{ m.full_name }}</option>
+                    {% endfor %}
+                </select>
+
+                <button type="submit" class="btn btn-primary">Создать заказ</button>
+            </form>
+        </div>
+    </div>
+{% endif %}
+
+{% if role == 'admin' %}
+    <!-- Модалка: Создание пользователя -->
+    <div id="service-user-modal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close" data-close="service-user-modal">&times;</span>
+            <h2>Создать пользователя</h2>
+            <form method="post" action="{{ url_for('service_user_create') }}">
+                <label>ФИО</label>
+                <input type="text" name="full_name" required>
+
+                <label>Роль</label>
+                <select name="role">
+                    <option value="client">{{ role_labels['client'] }}</option>
+                    <option value="manager">{{ role_labels['manager'] }}</option>
+                    <option value="master">{{ role_labels['master'] }}</option>
+                    <option value="admin">{{ role_labels['admin'] }}</option>
+                </select>
+
+                <label>Телефон</label>
+                <input type="text" name="phone">
+
+                <label>Email</label>
+                <input type="email" name="email">
+
+                <label>Логин</label>
+                <input type="text" name="login" required>
+
+                <label>Пароль</label>
+                <input type="password" name="password" required>
+
+                <button type="submit" class="btn btn-primary">Создать пользователя</button>
+            </form>
+        </div>
+    </div>
+{% endif %}
+
+{% endblock %}

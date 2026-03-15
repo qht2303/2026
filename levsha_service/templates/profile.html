@@ -1,0 +1,47 @@
+<!-- templates/profile.html -->
+{% extends "base.html" %}
+
+{% block content %}
+<section class="profile-section">
+    <h1>Профиль</h1>
+
+    <div class="profile-info">
+        <p><strong>ФИО:</strong> {{ user.full_name }}</p>
+        <p><strong>Телефон:</strong> {{ user.phone or 'не указан' }}</p>
+        <p><strong>Email:</strong> {{ user.email or 'не указан' }}</p>
+        <p><strong>Роль:</strong> {{ user.role }}</p>
+    </div>
+
+    <h2>Мои заказы</h2>
+    {% if orders %}
+        <table class="orders-table">
+            <thead>
+                <tr>
+                    <th>Номер</th>
+                    <th>Устройство</th>
+                    <th>Проблема</th>
+                    <th>Статус</th>
+                    <th>Ориентировочная цена</th>
+                    <th>Итоговая цена</th>
+                    <th>Дата</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for o in orders %}
+                    <tr>
+                        <td>{{ o.order_number }}</td>
+                        <td>{{ o.device_model }}</td>
+                        <td>{{ o.problem_description }}</td>
+                        <td>{{ o.status }}</td>
+                        <td>{{ o.approx_price or '-' }}</td>
+                        <td>{{ o.final_price or '-' }}</td>
+                        <td>{{ o.created_at.strftime('%d.%m.%Y') if o.created_at }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>У вас пока нет заказов.</p>
+    {% endif %}
+</section>
+{% endblock %}

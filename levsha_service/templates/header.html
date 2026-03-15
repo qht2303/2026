@@ -1,0 +1,26 @@
+<!-- templates/header.html -->
+<header class="header">
+    <div class="header-left">
+        <a href="{{ url_for('index') }}" class="logo">Левша</a>
+    </div>
+
+    <div class="header-center">
+        <button class="btn btn-primary" id="open-order-modal-btn">Форма заказа</button>
+        <a href="{{ url_for('contacts') }}" class="header-link">Где нас найти?</a>
+
+        {% if current_user and current_user.role in ['admin', 'manager', 'master'] %}
+            <a href="{{ url_for('service') }}" class="header-link">Сервис</a>
+        {% endif %}
+    </div>
+
+    <div class="header-right">
+        {% if current_user %}
+            <a href="{{ url_for('profile') }}" class="header-link header-user-name">
+                {{ current_user.full_name }}
+            </a>
+            <a href="{{ url_for('logout') }}" class="btn btn-outline">Выход</a>
+        {% else %}
+            <a href="{{ url_for('login_page') }}" class="btn btn-outline">Вход</a>
+        {% endif %}
+    </div>
+</header>

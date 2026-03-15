@@ -1,0 +1,19 @@
+<!-- templates/order_modal.html -->
+<div id="order-modal" class="modal">
+    <div class="modal-content">
+        <span class="modal-close" data-close="order-modal">&times;</span>
+        <h2>Создать запрос на ремонт</h2>
+        <form method="post" action="{{ url_for('create_order_route') }}">
+            <label>Модель устройства</label>
+            <input type="text" name="device_model" required>
+
+            <label>Описание проблемы</label>
+            <textarea name="problem_description" required></textarea>
+
+            <label>Ориентировочная цена (по желанию)</label>
+            <input type="number" step="0.01" name="approx_price">
+
+            <button type="submit" class="btn btn-primary">Отправить запрос</button>
+        </form>
+    </div>
+</div>

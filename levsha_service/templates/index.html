@@ -1,0 +1,84 @@
+<!-- templates/index.html -->
+{% extends "base.html" %}
+
+{% block content %}
+<div class="home-container">
+
+    <!-- Блок 1: Баннер про форму обратной связи (запрос на ремонт) -->
+    <section class="home-section banner-section">
+        <div class="banner-text">
+            <h1>Нужна помощь с ремонтом?</h1>
+            <p>
+                Опишите проблему в форме обратной связи, и мы подберём оптимальное решение:
+                стоимость, срок и необходимые работы.
+            </p>
+            <div class="banner-actions">
+                <button class="btn btn-primary" id="open-order-modal-btn-banner">
+                    Оставить запрос на ремонт
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Блок 2: PR-реклама компании -->
+    <section class="home-section promo-section">
+        <h2>Почему именно "Левша"?</h2>
+        <div class="promo-items">
+            <div class="promo-item">
+                <h3>Опытные мастера</h3>
+                <p>Наши специалисты имеют многолетний опыт ремонта техники ведущих брендов.</p>
+            </div>
+            <div class="promo-item">
+                <h3>Честная диагностика</h3>
+                <p>Мы проводим детальную диагностику и согласуем стоимость до начала работ.</p>
+            </div>
+            <div class="promo-item">
+                <h3>Гарантия на ремонт</h3>
+                <p>На все работы и установленные запчасти предоставляется гарантия.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Блок 3: Баннер про срочный обратный звонок -->
+    <section class="home-section banner-section callback-banner-section">
+        <div class="banner-text">
+            <h2>Требуется срочное решение?</h2>
+            <p>
+                Если ситуация не терпит ожидания — закажите обратный звонок.
+                Мы перезвоним вам в ближайшее время и поможем оперативно разобраться с проблемой.
+            </p>
+            <div class="banner-actions">
+                <button class="btn btn-secondary" id="open-callback-modal-btn">
+                    Заказать обратный звонок
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Блок 4: Отзывы клиентов -->
+    <section class="home-section reviews-section">
+        <h2>Отзывы клиентов</h2>
+        {% if reviews %}
+            <div class="reviews-list">
+                {% for r in reviews %}
+                    <div class="review-card">
+                        <div class="review-header">
+                            <strong>{{ r.client_name_full or 'Клиент' }}</strong>
+                            <span class="review-rating">
+                                Оценка: {{ r.rating }} / 5
+                            </span>
+                        </div>
+                        <p class="review-text">{{ r.comment }}</p>
+                        <div class="review-date">
+                            {{ r.created_at.strftime('%d.%m.%Y') if r.created_at }}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p>Отзывов пока нет.</p>
+        {% endif %}
+    </section>
+
+</div>
+{% endblock %}

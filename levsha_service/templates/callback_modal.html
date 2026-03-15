@@ -1,0 +1,12 @@
+<!-- templates/callback_modal.html -->
+<div id="callback-modal" class="modal">
+    <div class="modal-content">
+        <span class="modal-close" data-close="callback-modal">&times;</span>
+        <h2>Заказать звонок</h2>
+        <form method="post" action="{{ url_for('create_callback_route') }}">
+            <label>Телефон для связи</label>
+            <input type="text" name="phone" placeholder="+7..." required>
+            <button type="submit" class="btn btn-primary">Заказать звонок</button>
+        </form>
+    </div>
+</div>
